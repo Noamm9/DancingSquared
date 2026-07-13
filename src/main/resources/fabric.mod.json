@@ -1,24 +1,24 @@
 {
   "schemaVersion": 1,
-  "id": "untitled",
+  "id": "dancingsquared",
   "version": "${version}",
-  "name": "untitled",
-  "description": "",
-  "authors": [],
+  "name": "DancingSquared",
+  "description": "A simple addon for NoammAddons that completes the Dance Room in the Rift in Hypixel SkyBlock.",
+  "authors": ["Noamm"],
   "contact": {},
   "license": "All-Rights-Reserved",
-  "icon": "assets/untitled/icon.png",
+  "icon": "assets/dancingsquared/icon.png",
   "environment": "client",
   "entrypoints": {
     "client": [
       {
-        "value": "com.github.noamm9.untitled.Untitled",
+        "value": "com.github.noamm9.dancingsquared.DancingSquared",
         "adapter": "kotlin"
       }
     ]
   },
   "mixins": [
-    "untitled.mixins.json"
+    "dancingsquared.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=${loader_version}",

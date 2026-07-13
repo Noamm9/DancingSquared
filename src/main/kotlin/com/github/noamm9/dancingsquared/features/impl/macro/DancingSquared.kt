@@ -1,0 +1,178 @@
+package com.github.noamm9.dancingsquared.features.impl.macro
+
+import com.github.noamm9.NoammAddons
+import com.github.noamm9.event.impl.PacketEvent
+import com.github.noamm9.event.impl.TickEvent
+import com.github.noamm9.features.Feature
+import com.github.noamm9.utils.ChatUtils
+import com.github.noamm9.utils.ChatUtils.unformattedText
+import com.github.noamm9.utils.MathUtils
+import com.github.noamm9.utils.PlayerUtils
+import com.github.noamm9.utils.ThreadUtils
+import kotlinx.coroutines.launch
+import net.minecraft.client.KeyMapping
+import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket
+import net.minecraft.network.protocol.game.ClientboundSoundPacket
+import kotlin.math.abs
+
+object DancingSquared : Feature("Automatically completes the Dance Room puzzle") {
+    private val debug get() = NoammAddons.debugFlags.contains("dancing")
+
+    private val pitchList = hashSetOf(0.52380955f, 1.0476191f, 0.6984127f, 0.8888889f)
+    private const val COMPLETE_PITCH = 0.74603176f
+    private const val JUMP_DELAY = 500L
+    private const val PUNCH_DELAY = 800L
+
+    private var beats = 0
+    private var isActive = false
+    private var inMirrorverse = false
+    private var seg = 0
+    private var currentKeyBind: KeyMapping? = null
+
+    private const val X_MIN = -264.0
+    private const val X_MAX = -262.0
+    private const val Z_MIN = -105.0
+    private const val Z_MAX = -107.0
+
+    private val segments by lazy {
+        val o = mc.options
+        listOf(
+            Segment("z", Z_MIN, o.keyLeft),
+            Segment("x", X_MAX, o.keyDown),
+            Segment("z", Z_MAX, o.keyRight),
+            Segment("x", X_MIN, o.keyUp),
+        )
+    }
+
+    override fun init() {
+        register<TickEvent.Start> {
+            val y = mc.player?.blockPosition()?.y ?: return@register
+            val wasInMirrorverse = inMirrorverse
+            inMirrorverse = y in 32..<36
+
+            if (inMirrorverse != wasInMirrorverse && debug) {
+                ChatUtils.chat("[DancingSquared] Mirrorverse status changed: $inMirrorverse")
+            }
+        }
+
+        register<PacketEvent.Received> {
+            val packet = event.packet as? ClientboundSetSubtitleTextPacket ?: return@register
+            val text = packet.text.unformattedText
+            if (debug) ChatUtils.chat("[DancingSquared] Subtitle received: $text (InMirrorverse: $inMirrorverse)")
+
+            if (inMirrorverse && !isActive && text.contains("Move!", ignoreCase = true)) {
+                ChatUtils.modMessage("&bDance Room &7» &aEnabled via Subtitle!")
+                setActive()
+            }
+        }
+
+        register<TickEvent.Start> {
+            if (!isActive) return@register
+            val player = mc.player ?: return@register
+            val key = currentKeyBind ?: return@register
+
+            val segment = segments[seg]
+            val playerPos = if (segment.axis == "x") player.x else player.z
+            val (low, high) = if (segment.target >= 0) {
+                segment.target to segment.target + 1.0
+            } else {
+                segment.target - 1.0 to segment.target
+            }
+            if (playerPos !in low..high) return@register
+
+            key.isDown = false
+            currentKeyBind = null
+            seg = (seg + 1) % segments.size
+        }
+
+        register<PacketEvent.Received> {
+            if (!inMirrorverse || !isActive) return@register
+            val packet = event.packet as? ClientboundSoundPacket ?: return@register
+            val name = packet.sound.value().location.toString()
+
+            if (name.contains("burp") || name.contains("villager.no")) {
+                ChatUtils.modMessage("&bDance Room &7» &cFailed!")
+                setInactive()
+                return@register
+            }
+
+            if (name.contains("note_block.bass")) {
+                val isBeat = pitchList.any { abs(it - packet.pitch) < 0.01 }
+                val isComplete = abs(COMPLETE_PITCH - packet.pitch) < 0.01
+
+                if (isBeat) {
+                    beats++
+                    if (debug) ChatUtils.chat("[DancingSquared] Total beats: $beats")
+                    doMove(beats)
+                } else if (isComplete) {
+                    ChatUtils.modMessage("&bDance Room &7» &aCompleted!")
+                    setInactive()
+                }
+            }
+        }
+    }
+
+    private fun setActive() {
+        isActive = true
+        beats = 0
+        seg = 0
+
+        scope.launch {
+            PlayerUtils.rotateSmoothly(MathUtils.Rotation(90f, 90f), 200) {
+                doMove(0)
+            }
+        }
+    }
+
+    private fun setInactive() {
+        isActive = false
+        segments.forEach { it.key.isDown = false }
+        mc.options.keyShift.isDown = false
+        mc.options.keyJump.isDown = false
+        currentKeyBind = null
+    }
+
+    private fun doMove(beat: Int) {
+        val status = mutableListOf<String>()
+        val beat = beat - 1
+
+        if (beat == 0 || beat % 2 == 1) {
+            val nextKey = segments[seg].key
+            if (debug) ChatUtils.chat("[DancingSquared] Beat $beat: Switching to Segment $seg (Key: ${nextKey.name})")
+            status.add("moving")
+            currentKeyBind?.isDown = false
+            nextKey.isDown = true
+            currentKeyBind = nextKey
+        }
+
+        if (beat >= 8) {
+            if (beat % 4 == 0) {
+                status.add("sneaking")
+                mc.options.keyShift.isDown = true
+            } else if (beat % 4 == 1) {
+                status.add("unsneaking")
+                mc.options.keyShift.isDown = false
+            }
+        }
+
+        if (beat >= 24 && (beat % 8 == 0 || beat % 8 == 2)) {
+            status.add("jumping")
+            ThreadUtils.setTimeout(JUMP_DELAY) {
+                mc.options.keyJump.isDown = true
+                ThreadUtils.setTimeout(100) { mc.options.keyJump.isDown = false }
+            }
+        }
+
+        if (beat >= 64 && beat % 2 == 0) {
+            status.add("punching")
+            ThreadUtils.setTimeout(PUNCH_DELAY) {
+                PlayerUtils.leftClick()
+            }
+        }
+
+        val statusStr = if (status.isEmpty()) "" else ": ${status.joinToString(", ")}"
+        ChatUtils.modMessage("&7Beat $beat$statusStr.")
+    }
+
+    private data class Segment(val axis: String, val target: Double, val key: KeyMapping)
+}

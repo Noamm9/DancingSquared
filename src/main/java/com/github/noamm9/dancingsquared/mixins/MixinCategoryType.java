@@ -1,4 +1,4 @@
-package com.github.noamm9.untitled.mixins;
+package com.github.noamm9.dancingsquared.mixins;
 
 import com.github.noamm9.NoammAddons;
 import com.github.noamm9.ui.clickgui.enums.CategoryType;
@@ -16,13 +16,8 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-/**
-    Mixins to add a category to the config gui
-    String enumName = "UNTITLED";
- */
 @Mixin(CategoryType.class)
 public class MixinCategoryType {
-
     @Shadow @Final @Mutable
     private static CategoryType[] $VALUES;
 
@@ -33,24 +28,20 @@ public class MixinCategoryType {
             unsafeField.setAccessible(true);
             Unsafe unsafe = (Unsafe) unsafeField.get(null);
 
-            String enumName = "UNTITLED";
+            String enumName = "MACRO";
             ArrayList<CategoryType> valuesList = new ArrayList<>(Arrays.asList($VALUES));
             int newOrdinal = valuesList.size();
-
             CategoryType newCategory = (CategoryType) unsafe.allocateInstance(CategoryType.class);
 
             Field nameField = Enum.class.getDeclaredField("name");
             Field ordinalField = Enum.class.getDeclaredField("ordinal");
-
             long nameOffset = unsafe.objectFieldOffset(nameField);
             long ordinalOffset = unsafe.objectFieldOffset(ordinalField);
-
             unsafe.putObject(newCategory, nameOffset, enumName);
             unsafe.putInt(newCategory, ordinalOffset, newOrdinal);
 
             valuesList.add(newCategory);
             CategoryType[] newValuesArray = valuesList.toArray(new CategoryType[0]);
-
             $VALUES = newValuesArray;
 
             Field entriesField = CategoryType.class.getDeclaredField("$ENTRIES");

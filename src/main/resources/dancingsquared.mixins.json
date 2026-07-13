@@ -1,14 +1,12 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "com.github.noamm9.untitled.mixins",
-  "compatibilityLevel": "JAVA_25",
+  "package": "com.github.noamm9.dancingsquared.mixins",
+  "compatibilityLevel": "JAVA_21",
   "mixins": [
     "MixinCategoryType"
   ],
-  "client": [
-    "MixinMinecraft"
-  ],
+  "client": [],
   "injectors": {
     "defaultRequire": 1
   },
