@@ -2,6 +2,13 @@
 
 > A simple NoammAddons addon that automatically completes the Dance Room in the Rift.
 
+## Usage
+
+[![DancingSquared demonstration](https://i.ytimg.com/vi/5fQQJVvan1g/hqdefault.jpg)](https://www.youtube.com/watch?v=5fQQJVvan1g)
+
+> [!IMPORTANT]
+> Disable **SnappyTappy** and Sodium's FPS limiter before using DancingSquared.
+
 ## Credits
 
 DancingSquared was created entirely by [Noamm](https://github.com/Noamm9). All credit for the original mod and its code belongs to him.
