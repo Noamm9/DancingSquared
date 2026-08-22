@@ -4,9 +4,6 @@ pluginManagement {
             name = "Fabric"
         }
 
-        maven("https://jitpack.io") {
-            name = "JitPack"
-        }
         gradlePluginPortal()
     }
 }
